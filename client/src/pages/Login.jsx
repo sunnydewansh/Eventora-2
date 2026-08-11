@@ -39,6 +39,22 @@ const Login = () => {
         }
     };
 
+    const handleQuickLogin = async (demoEmail, demoPassword) => {
+        setEmail(demoEmail);
+        setPassword(demoPassword);
+        setLoading(true);
+        setError('');
+        try {
+            const data = await login(demoEmail, demoPassword);
+            if (data.role === 'admin') navigate('/admin');
+            else navigate('/dashboard');
+        } catch (err) {
+            setError(err.message || err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
             <div className="text-center mb-8">
@@ -94,6 +110,28 @@ const Login = () => {
                     {loading ? 'Processing...' : (showOTP ? 'Verify OTP & Log In' : 'Sign In')}
                 </button>
             </form>
+
+            <div className="mt-6 pt-6 border-t border-gray-100">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 text-center mb-3">Quick Demo Access</p>
+                <div className="grid grid-cols-2 gap-3">
+                    <button
+                        type="button"
+                        onClick={() => handleQuickLogin('user@eventora.com', 'password123')}
+                        disabled={loading}
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center"
+                    >
+                        Try Demo User
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickLogin('admin@eventora.com', 'password123')}
+                        disabled={loading}
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center"
+                    >
+                        Try Demo Admin
+                    </button>
+                </div>
+            </div>
 
             <p className="text-center mt-8 text-gray-600">
                 Don't have an account? <Link to="/register" className="text-gray-900 font-bold hover:underline">Sign up</Link>

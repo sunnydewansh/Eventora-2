@@ -1,14 +1,20 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
-const FROM_EMAIL = 'Eventora <onboarding@resend.dev>';
+const FROM_EMAIL = `Eventora <${process.env.EMAIL_USER}>`;
 
 const sendBookingEmail = async (userEmail, userName, eventTitle) => {
     try {
-        const { data, error } = await resend.emails.send({
+        const info = await transporter.sendMail({
             from: FROM_EMAIL,
-            to: [userEmail],
+            to: userEmail,
             subject: `Booking Confirmed: ${eventTitle}`,
             html: `
                 <h2>Hi ${userName}!</h2>
@@ -21,13 +27,8 @@ const sendBookingEmail = async (userEmail, userName, eventTitle) => {
             `
         });
 
-        if (error) {
-            console.error('BOOKING EMAIL ERROR:', error);
-            throw new Error(error.message);
-        }
-
-        console.log('Booking email sent successfully:', data.id);
-        return data;
+        console.log('Booking email sent successfully:', info.messageId);
+        return info;
 
     } catch (error) {
         console.error('BOOKING EMAIL ERROR:', error);
@@ -48,9 +49,9 @@ const sendOTPEmail = async (userEmail, otp, type) => {
                 ? 'Please use the following OTP to verify your new Eventora account.'
                 : 'Please use the following OTP to verify and confirm your event booking.';
 
-        const { data, error } = await resend.emails.send({
+        const info = await transporter.sendMail({
             from: FROM_EMAIL,
-            to: [userEmail],
+            to: userEmail,
             subject: title,
             html: `
                 <div style="
@@ -92,13 +93,8 @@ const sendOTPEmail = async (userEmail, otp, type) => {
             `
         });
 
-        if (error) {
-            console.error('OTP EMAIL ERROR:', error);
-            throw new Error(error.message);
-        }
-
-        console.log(`OTP sent successfully to ${userEmail}:`, data.id);
-        return data;
+        console.log(`OTP sent successfully to ${userEmail}:`, info.messageId);
+        return info;
 
     } catch (error) {
         console.error('OTP EMAIL ERROR:', error);

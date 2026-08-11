@@ -29,13 +29,24 @@ exports.register = async (req, res) => {
 
         const otp = generateOTP();
         await OTP.create({ email, otp, action: 'account_verification' });
-        await sendOTPEmail(email, otp, 'account_verification');
+
+        // Try to send OTP email, but don't crash registration if it fails
+        let emailSent = true;
+        try {
+            await sendOTPEmail(email, otp, 'account_verification');
+        } catch (emailError) {
+            console.error('Failed to send OTP email during registration:', emailError.message);
+            emailSent = false;
+        }
 
         res.status(201).json({
-            message: 'OTP sent to email. Please verify.',
+            message: emailSent
+                ? 'OTP sent to email. Please verify.'
+                : 'Account created. OTP email could not be sent — please try logging in to resend.',
             email: user.email
         });
     } catch (error) {
+        console.error('Register error:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
@@ -53,8 +64,15 @@ exports.login = async (req, res) => {
             const otp = generateOTP();
             await OTP.findOneAndDelete({ email: user.email, action: 'account_verification' });
             await OTP.create({ email: user.email, otp, action: 'account_verification' });
-            await sendOTPEmail(user.email, otp, 'account_verification');
-            return res.status(403).json({ message: 'Account not verified', needsVerification: true, email: user.email });
+
+            // Try to send OTP email, but don't crash login if it fails
+            try {
+                await sendOTPEmail(user.email, otp, 'account_verification');
+            } catch (emailError) {
+                console.error('Failed to send OTP email during login:', emailError.message);
+            }
+
+            return res.status(403).json({ message: 'Account not verified. Check your email for OTP.', needsVerification: true, email: user.email });
         }
 
         res.json({
@@ -65,6 +83,7 @@ exports.login = async (req, res) => {
             token: generateToken(user.id, user.role)
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
@@ -89,6 +108,7 @@ exports.verifyOTP = async (req, res) => {
             token: generateToken(user.id, user.role)
         });
     } catch (error) {
+        console.error('VerifyOTP error:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };

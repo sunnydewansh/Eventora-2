@@ -10,9 +10,17 @@ exports.sendBookingOTP = async (req, res) => {
         const otp = generateOTP();
         await OTP.findOneAndDelete({ email: req.user.email, action: 'event_booking' });
         await OTP.create({ email: req.user.email, otp, action: 'event_booking' });
-        await sendOTPEmail(req.user.email, otp, 'event_booking');
-        res.json({ message: 'OTP sent successfully' });
+        // Try to send OTP email, but don't crash if it fails
+        let emailSent = true;
+        try {
+            await sendOTPEmail(req.user.email, otp, 'event_booking');
+        } catch (emailError) {
+            console.error('Failed to send booking OTP email:', emailError.message);
+            emailSent = false;
+        }
+        res.json({ message: emailSent ? 'OTP sent successfully' : 'OTP created but email delivery failed. Please try again.' });
     } catch (error) {
+        console.error('sendBookingOTP error:', error);
         res.status(500).json({ message: 'Error sending OTP', error: error.message });
     }
 };
@@ -74,11 +82,16 @@ exports.confirmBooking = async (req, res) => {
         event.availableSeats -= 1;
         await event.save();
 
-        // Send email on admin confirmation
-        await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
+        // Send email on admin confirmation (don't crash if it fails)
+        try {
+            await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
+        } catch (emailError) {
+            console.error('Failed to send booking confirmation email:', emailError.message);
+        }
 
         res.json({ message: 'Booking confirmed successfully', booking });
     } catch (error) {
+        console.error('confirmBooking error:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };

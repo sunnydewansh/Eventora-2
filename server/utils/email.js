@@ -1,63 +1,40 @@
-const nodemailer = require('nodemailer');
-const dotenv = require('dotenv');
+const { Resend } = require('resend');
 
-dotenv.config();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
-});
-
-// Check SMTP connection when server starts
-transporter.verify((error, success) => {
-    if (error) {
-        console.error('SMTP CONNECTION ERROR:', error);
-    } else {
-        console.log('SMTP server is ready');
-    }
-});
+const FROM_EMAIL = 'Eventora <onboarding@resend.dev>';
 
 const sendBookingEmail = async (userEmail, userName, eventTitle) => {
     try {
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: userEmail,
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [userEmail],
             subject: `Booking Confirmed: ${eventTitle}`,
             html: `
                 <h2>Hi ${userName}!</h2>
-
                 <p>
                     Your booking for the event
                     <strong>${eventTitle}</strong>
                     is successfully confirmed.
                 </p>
-
                 <p>Thank you for choosing Eventora.</p>
             `
-        };
+        });
 
-        await transporter.sendMail(mailOptions);
+        if (error) {
+            console.error('BOOKING EMAIL ERROR:', error);
+            throw new Error(error.message);
+        }
 
-        console.log(
-            'Booking email sent successfully to:',
-            userEmail
-        );
+        console.log('Booking email sent successfully:', data.id);
+        return data;
 
     } catch (error) {
         console.error('BOOKING EMAIL ERROR:', error);
         throw error;
     }
 };
+
 
 const sendOTPEmail = async (userEmail, otp, type) => {
     try {
@@ -71,9 +48,9 @@ const sendOTPEmail = async (userEmail, otp, type) => {
                 ? 'Please use the following OTP to verify your new Eventora account.'
                 : 'Please use the following OTP to verify and confirm your event booking.';
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: userEmail,
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [userEmail],
             subject: title,
             html: `
                 <div style="
@@ -81,7 +58,6 @@ const sendOTPEmail = async (userEmail, otp, type) => {
                     text-align: center;
                     padding: 20px;
                 ">
-
                     <h2 style="color: #111;">
                         ${title}
                     </h2>
@@ -110,25 +86,26 @@ const sendOTPEmail = async (userEmail, otp, type) => {
                         font-size: 12px;
                     ">
                         This code expires in 5 minutes.
-                        If you didn't request this,
-                        please ignore this email.
+                        If you didn't request this, please ignore this email.
                     </p>
-
                 </div>
             `
-        };
+        });
 
-        await transporter.sendMail(mailOptions);
+        if (error) {
+            console.error('OTP EMAIL ERROR:', error);
+            throw new Error(error.message);
+        }
 
-        console.log(
-            `OTP sent successfully to ${userEmail} for ${type}`
-        );
+        console.log(`OTP sent successfully to ${userEmail}:`, data.id);
+        return data;
 
     } catch (error) {
         console.error('OTP EMAIL ERROR:', error);
         throw error;
     }
 };
+
 
 module.exports = {
     sendBookingEmail,

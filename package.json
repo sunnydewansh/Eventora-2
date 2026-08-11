@@ -1,0 +1,25 @@
+{
+  "name": "eventora",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Root scripts for Eventora client and server",
+  "scripts": {
+    "install:server": "npm install --prefix server --legacy-peer-deps",
+    "install:client": "npm install --prefix client",
+    "install:all": "concurrently -n server,client -c blue,green \"npm run install:server\" \"npm run install:client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "start:server": "npm run start --prefix server",
+    "start:client": "npm run preview --prefix client",
+    "start": "concurrently -n server,client -c blue,green \"npm run start:server\" \"npm run start:client\"",
+    "build": "npm run build --prefix client",
+    "lint": "npm run lint --prefix client",
+    "setup": "npm install && npm run install:all",
+    "dev:all": "npm run setup && npm run dev",
+    "start:all": "npm run setup && npm run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('token', data.token);
             return data;
         } catch (error) {
-            if (error.response?.data?.needsVerification) throw error.response.data;
             throw error.response?.data?.message || 'Login failed';
         }
     };
@@ -31,7 +30,12 @@ export const AuthProvider = ({ children }) => {
     const register = async (name, email, password) => {
         try {
             const { data } = await api.post('/auth/register', { name, email, password });
-            return data; // Returns { message, email }
+            if (data.token) {
+                setUser(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
+                localStorage.setItem('token', data.token);
+            }
+            return data;
         } catch (error) {
             throw error.response?.data?.message || 'Registration failed';
         }

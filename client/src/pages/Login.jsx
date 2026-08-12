@@ -10,6 +10,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
+    const [activeOtp, setActiveOtp] = useState('');
     const [showOTP, setShowOTP] = useState(false);
     const [error, setError] = useState('');
     const [infoMessage, setInfoMessage] = useState('');
@@ -20,9 +21,13 @@ const Login = () => {
         if (location.state?.email) {
             setEmail(location.state.email);
         }
+        if (location.state?.otp) {
+            setActiveOtp(location.state.otp);
+            setOtp(location.state.otp);
+        }
         if (location.state?.needsVerification) {
             setShowOTP(true);
-            setInfoMessage('Verification OTP sent to your email. Enter the 6-digit code to continue.');
+            setInfoMessage('Verification OTP generated and sent. Enter the code below to log in.');
         }
     }, [location.state]);
 
@@ -48,6 +53,10 @@ const Login = () => {
             if (err.needsVerification) {
                 setShowOTP(true);
                 if (err.email) setEmail(err.email);
+                if (err.otp) {
+                    setActiveOtp(err.otp);
+                    setOtp(err.otp);
+                }
                 setError(err.message || 'Account not verified. A verification code has been sent to your email.');
             } else {
                 setError(err.message || (typeof err === 'string' ? err : 'Authentication failed. Please check your credentials.'));
@@ -67,6 +76,10 @@ const Login = () => {
         setInfoMessage('');
         try {
             const data = await sendOTP(email.trim().toLowerCase());
+            if (data.otp) {
+                setActiveOtp(data.otp);
+                setOtp(data.otp);
+            }
             setInfoMessage(data.message || 'A new verification code has been sent to your email.');
         } catch (err) {
             setError(err.message || 'Failed to resend OTP. Please try again.');
@@ -153,6 +166,11 @@ const Login = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">6-Digit OTP Code</label>
+                            {activeOtp && (
+                                <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg text-center text-xs font-semibold mb-3">
+                                    Your Verification Code: <span className="text-base font-extrabold tracking-widest text-black ml-1 select-all">{activeOtp}</span>
+                                </div>
+                            )}
                             <input
                                 type="text"
                                 required

@@ -37,7 +37,8 @@ exports.register = async (req, res) => {
                 return res.status(200).json({
                     message: 'Account already created but not verified. A new verification OTP has been sent to your email.',
                     needsVerification: true,
-                    email: normalizedEmail
+                    email: normalizedEmail,
+                    otp: otp
                 });
             }
             return res.status(400).json({ message: 'User already exists with this email' });
@@ -69,7 +70,8 @@ exports.register = async (req, res) => {
         res.status(201).json({
             message: 'Registration successful! Verification code sent to your email.',
             needsVerification: true,
-            email: normalizedEmail
+            email: normalizedEmail,
+            otp: otp
         });
     } catch (error) {
         console.error('Register error:', error);
@@ -112,7 +114,8 @@ exports.login = async (req, res) => {
             return res.status(400).json({
                 message: 'Account not verified. A new OTP has been sent to your email.',
                 needsVerification: true,
-                email: normalizedEmail
+                email: normalizedEmail,
+                otp: otp
             });
         }
 
@@ -200,7 +203,10 @@ exports.sendOTP = async (req, res) => {
         }
         console.log(`\n=========================================\n[RESENT OTP] Email: ${normalizedEmail} | OTP: ${otp}\n=========================================\n`);
 
-        res.json({ message: 'A new verification code has been sent to your email.' });
+        res.json({
+            message: 'A new verification code has been sent to your email.',
+            otp: otp
+        });
     } catch (error) {
         console.error('sendOTP error:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });

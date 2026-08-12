@@ -22,7 +22,8 @@ const Register = () => {
                 navigate('/login', {
                     state: {
                         email: data.email || email.trim().toLowerCase(),
-                        needsVerification: true
+                        needsVerification: true,
+                        otp: data.otp
                     }
                 });
             } else if (data.role === 'admin') {

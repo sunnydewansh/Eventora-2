@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('token', data.token);
             return data;
         } catch (error) {
-            throw error.response?.data?.message || 'Login failed';
+            throw error.response?.data || { message: 'Login failed' };
         }
     };
 
@@ -37,19 +37,30 @@ export const AuthProvider = ({ children }) => {
             }
             return data;
         } catch (error) {
-            throw error.response?.data?.message || 'Registration failed';
+            throw error.response?.data || { message: 'Registration failed' };
         }
     };
 
     const verifyOTP = async (email, otp) => {
         try {
             const { data } = await api.post('/auth/verify-otp', { email, otp });
-            setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
-            localStorage.setItem('token', data.token);
+            if (data.token) {
+                setUser(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
+                localStorage.setItem('token', data.token);
+            }
             return data;
         } catch (error) {
-            throw error.response?.data?.message || 'OTP verification failed';
+            throw error.response?.data || { message: 'OTP verification failed' };
+        }
+    };
+
+    const sendOTP = async (email) => {
+        try {
+            const { data } = await api.post('/auth/send-otp', { email });
+            return data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to send OTP' };
         }
     };
 
@@ -60,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, verifyOTP, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, register, verifyOTP, sendOTP, logout, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

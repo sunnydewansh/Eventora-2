@@ -18,10 +18,20 @@ const Register = () => {
         setError('');
         try {
             const data = await register(name, email, password);
-            if (data.role === 'admin') navigate('/admin');
-            else navigate('/dashboard');
+            if (data.needsVerification) {
+                navigate('/login', {
+                    state: {
+                        email: data.email || email.trim().toLowerCase(),
+                        needsVerification: true
+                    }
+                });
+            } else if (data.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err) {
-            setError(err.message || err);
+            setError(err.message || (typeof err === 'string' ? err : 'Registration failed. Please try again.'));
         } finally {
             setLoading(false);
         }

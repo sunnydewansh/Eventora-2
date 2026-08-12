@@ -97,6 +97,7 @@ const seedDatabase = async () => {
         const salt = await bcrypt.genSalt(10);
         const hashedUsers = users.map(u => ({
             ...u,
+            email: u.email.toLowerCase().trim(),
             password: bcrypt.hashSync(u.password, salt),
             isVerified: true
         }));

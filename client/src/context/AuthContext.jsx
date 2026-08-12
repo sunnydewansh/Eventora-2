@@ -15,15 +15,25 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
+    const getError = (error, fallback) => {
+        if (error.response?.data) return error.response.data;
+        if (error.request) return { message: 'Unable to reach the server. Please try again in a moment.' };
+        return { message: fallback };
+    };
+
+    const saveSession = (data) => {
+        setUser(data);
+        localStorage.setItem('userInfo', JSON.stringify(data));
+        localStorage.setItem('token', data.token);
+    };
+
     const login = async (email, password) => {
         try {
             const { data } = await api.post('/auth/login', { email, password });
-            setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
-            localStorage.setItem('token', data.token);
+            saveSession(data);
             return data;
         } catch (error) {
-            throw error.response?.data || { message: 'Login failed' };
+            throw getError(error, 'Login failed');
         }
     };
 
@@ -31,13 +41,11 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await api.post('/auth/register', { name, email, password });
             if (data.token) {
-                setUser(data);
-                localStorage.setItem('userInfo', JSON.stringify(data));
-                localStorage.setItem('token', data.token);
+                saveSession(data);
             }
             return data;
         } catch (error) {
-            throw error.response?.data || { message: 'Registration failed' };
+            throw getError(error, 'Registration failed');
         }
     };
 
@@ -45,13 +53,11 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await api.post('/auth/verify-otp', { email, otp });
             if (data.token) {
-                setUser(data);
-                localStorage.setItem('userInfo', JSON.stringify(data));
-                localStorage.setItem('token', data.token);
+                saveSession(data);
             }
             return data;
         } catch (error) {
-            throw error.response?.data || { message: 'OTP verification failed' };
+            throw getError(error, 'OTP verification failed');
         }
     };
 
@@ -60,7 +66,28 @@ export const AuthProvider = ({ children }) => {
             const { data } = await api.post('/auth/send-otp', { email });
             return data;
         } catch (error) {
-            throw error.response?.data || { message: 'Failed to send OTP' };
+            throw getError(error, 'Failed to send OTP');
+        }
+    };
+
+    const forgotPassword = async (email) => {
+        try {
+            const { data } = await api.post('/auth/forgot-password', { email });
+            return data;
+        } catch (error) {
+            throw getError(error, 'Failed to send password reset code');
+        }
+    };
+
+    const resetPassword = async (email, otp, password) => {
+        try {
+            const { data } = await api.post('/auth/reset-password', { email, otp, password });
+            if (data.token) {
+                saveSession(data);
+            }
+            return data;
+        } catch (error) {
+            throw getError(error, 'Failed to reset password');
         }
     };
 
@@ -71,7 +98,17 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, verifyOTP, sendOTP, logout, loading }}>
+        <AuthContext.Provider value={{
+            user,
+            login,
+            register,
+            verifyOTP,
+            sendOTP,
+            forgotPassword,
+            resetPassword,
+            logout,
+            loading
+        }}>
             {!loading && children}
         </AuthContext.Provider>
     );

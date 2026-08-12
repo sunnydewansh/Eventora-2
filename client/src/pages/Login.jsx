@@ -5,13 +5,20 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 const Login = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { login, verifyOTP, sendOTP } = useContext(AuthContext);
+    const {
+        login,
+        verifyOTP,
+        sendOTP,
+        forgotPassword,
+        resetPassword
+    } = useContext(AuthContext);
 
+    const [mode, setMode] = useState('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [otp, setOtp] = useState('');
-    const [activeOtp, setActiveOtp] = useState('');
-    const [showOTP, setShowOTP] = useState(false);
     const [error, setError] = useState('');
     const [infoMessage, setInfoMessage] = useState('');
     const [loading, setLoading] = useState(false);
@@ -21,45 +28,66 @@ const Login = () => {
         if (location.state?.email) {
             setEmail(location.state.email);
         }
-        if (location.state?.otp) {
-            setActiveOtp(location.state.otp);
-            setOtp(location.state.otp);
-        }
         if (location.state?.needsVerification) {
-            setShowOTP(true);
-            setInfoMessage('Verification OTP generated and sent. Enter the code below to log in.');
+            setMode('verify');
+            setInfoMessage(location.state.message || 'A verification code has been sent to your email.');
         }
     }, [location.state]);
+
+    const normalizeEmail = () => email.trim().toLowerCase();
+
+    const navigateAfterAuth = (data) => {
+        navigate(data.role === 'admin' ? '/admin' : '/dashboard');
+    };
+
+    const resetMessages = () => {
+        setError('');
+        setInfoMessage('');
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
-        setInfoMessage('');
+        resetMessages();
 
-        const cleanEmail = email.trim().toLowerCase();
+        const cleanEmail = normalizeEmail();
 
         try {
-            if (!showOTP) {
+            if (mode === 'login') {
                 const data = await login(cleanEmail, password);
-                if (data.role === 'admin') navigate('/admin');
-                else navigate('/dashboard');
-            } else {
-                const data = await verifyOTP(cleanEmail, otp);
-                if (data.role === 'admin') navigate('/admin');
-                else navigate('/dashboard');
+                navigateAfterAuth(data);
+                return;
             }
+
+            if (mode === 'verify') {
+                const data = await verifyOTP(cleanEmail, otp);
+                navigateAfterAuth(data);
+                return;
+            }
+
+            if (mode === 'forgot') {
+                const data = await forgotPassword(cleanEmail);
+                setMode('reset');
+                setOtp('');
+                setInfoMessage(data.message || 'Password reset code sent to your email.');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                setError('New passwords do not match.');
+                return;
+            }
+
+            const data = await resetPassword(cleanEmail, otp, newPassword);
+            navigateAfterAuth(data);
         } catch (err) {
             if (err.needsVerification) {
-                setShowOTP(true);
+                setMode('verify');
                 if (err.email) setEmail(err.email);
-                if (err.otp) {
-                    setActiveOtp(err.otp);
-                    setOtp(err.otp);
-                }
+                setOtp('');
                 setError(err.message || 'Account not verified. A verification code has been sent to your email.');
             } else {
-                setError(err.message || (typeof err === 'string' ? err : 'Authentication failed. Please check your credentials.'));
+                setError(err.message || (typeof err === 'string' ? err : 'Authentication failed. Please try again.'));
             }
         } finally {
             setLoading(false);
@@ -68,51 +96,72 @@ const Login = () => {
 
     const handleResendOTP = async () => {
         if (!email) {
-            setError('Please enter your email address to resend OTP.');
+            setError('Please enter your email address first.');
             return;
         }
+
         setResendLoading(true);
-        setError('');
-        setInfoMessage('');
+        resetMessages();
+
         try {
-            const data = await sendOTP(email.trim().toLowerCase());
-            if (data.otp) {
-                setActiveOtp(data.otp);
-                setOtp(data.otp);
-            }
-            setInfoMessage(data.message || 'A new verification code has been sent to your email.');
+            const cleanEmail = normalizeEmail();
+            const data = mode === 'reset'
+                ? await forgotPassword(cleanEmail)
+                : await sendOTP(cleanEmail);
+
+            setOtp('');
+            setInfoMessage(data.message || 'A new code has been sent to your email.');
         } catch (err) {
-            setError(err.message || 'Failed to resend OTP. Please try again.');
+            setError(err.message || 'Failed to resend code. Please try again.');
         } finally {
             setResendLoading(false);
         }
     };
 
     const handleQuickLogin = async (demoEmail, demoPassword) => {
+        setMode('login');
         setEmail(demoEmail);
         setPassword(demoPassword);
-        setShowOTP(false);
         setLoading(true);
-        setError('');
-        setInfoMessage('');
+        resetMessages();
+
         try {
             const data = await login(demoEmail, demoPassword);
-            if (data.role === 'admin') navigate('/admin');
-            else navigate('/dashboard');
+            navigateAfterAuth(data);
         } catch (err) {
-            setError(err.message || (typeof err === 'string' ? err : 'Quick login failed.'));
+            setError(err.message || 'Demo login failed.');
         } finally {
             setLoading(false);
         }
     };
 
+    const switchMode = (nextMode) => {
+        setMode(nextMode);
+        setOtp('');
+        setNewPassword('');
+        setConfirmPassword('');
+        resetMessages();
+    };
+
+    const title = {
+        login: 'Welcome Back',
+        verify: 'Verify Your Email',
+        forgot: 'Reset Password',
+        reset: 'Create New Password'
+    }[mode];
+
+    const subtitle = {
+        login: 'Sign in to your Eventora account',
+        verify: 'Enter the 6-digit code sent to your email',
+        forgot: 'We will email you a reset code',
+        reset: 'Use your emailed code to update your password'
+    }[mode];
+
     return (
         <div className="max-w-md mx-auto mt-16 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
             <div className="text-center mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Welcome Back</h2>
-                <p className="text-gray-500">
-                    {showOTP ? 'Verify your email to continue' : 'Sign in to your Eventora account'}
-                </p>
+                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">{title}</h2>
+                <p className="text-gray-500">{subtitle}</p>
             </div>
 
             {infoMessage && (
@@ -128,109 +177,161 @@ const Login = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                {!showOTP ? (
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                    <input
+                        type="email"
+                        required
+                        placeholder="name@example.com"
+                        disabled={mode === 'verify'}
+                        className={`w-full px-4 py-3 rounded-lg border transition shadow-sm ${
+                            mode === 'verify'
+                                ? 'bg-gray-100 text-gray-600 border-gray-200 cursor-not-allowed'
+                                : 'border-gray-300 focus:ring-2 focus:ring-gray-700 focus:border-gray-700'
+                        }`}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                </div>
+
+                {mode === 'login' && (
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-gray-700">Password</label>
+                            <button
+                                type="button"
+                                onClick={() => switchMode('forgot')}
+                                className="text-xs font-bold text-gray-900 hover:underline"
+                            >
+                                Forgot password?
+                            </button>
+                        </div>
+                        <input
+                            type="password"
+                            required
+                            placeholder="********"
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 focus:border-gray-700 transition shadow-sm"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </div>
+                )}
+
+                {(mode === 'verify' || mode === 'reset') && (
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">6-Digit Email Code</label>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            required
+                            placeholder="123456"
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 transition shadow-sm font-bold tracking-widest text-center text-xl"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            maxLength="6"
+                            autoComplete="one-time-code"
+                        />
+                    </div>
+                )}
+
+                {mode === 'reset' && (
                     <>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                            <input
-                                type="email"
-                                required
-                                placeholder="name@example.com"
-                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 focus:border-gray-700 transition shadow-sm"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
                             <input
                                 type="password"
                                 required
-                                placeholder="••••••••"
+                                minLength="6"
+                                placeholder="Minimum 6 characters"
                                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 focus:border-gray-700 transition shadow-sm"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Verification Email</label>
-                            <input
-                                type="email"
-                                disabled
-                                className="w-full px-4 py-3 bg-gray-100 text-gray-600 rounded-lg border border-gray-200 transition shadow-sm font-medium cursor-not-allowed"
-                                value={email}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">6-Digit OTP Code</label>
-                            {activeOtp && (
-                                <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg text-center text-xs font-semibold mb-3">
-                                    Your Verification Code: <span className="text-base font-extrabold tracking-widest text-black ml-1 select-all">{activeOtp}</span>
-                                </div>
-                            )}
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
                             <input
-                                type="text"
+                                type="password"
                                 required
-                                placeholder="123456"
-                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 transition shadow-sm font-bold tracking-widest text-center text-xl"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                maxLength="6"
+                                minLength="6"
+                                placeholder="Repeat new password"
+                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-700 focus:border-gray-700 transition shadow-sm"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
                             />
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <button
-                                type="button"
-                                onClick={() => setShowOTP(false)}
-                                className="text-gray-500 hover:text-gray-900 underline text-xs font-semibold"
-                            >
-                                Back to Password Login
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleResendOTP}
-                                disabled={resendLoading}
-                                className="text-gray-900 font-bold hover:underline text-xs"
-                            >
-                                {resendLoading ? 'Sending...' : 'Resend Code'}
-                            </button>
                         </div>
                     </>
                 )}
 
+                {(mode === 'verify' || mode === 'reset') && (
+                    <div className="flex justify-between items-center text-sm">
+                        <button
+                            type="button"
+                            onClick={() => switchMode('login')}
+                            className="text-gray-500 hover:text-gray-900 underline text-xs font-semibold"
+                        >
+                            Back to login
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleResendOTP}
+                            disabled={resendLoading}
+                            className="text-gray-900 font-bold hover:underline text-xs disabled:opacity-60"
+                        >
+                            {resendLoading ? 'Sending...' : 'Resend Code'}
+                        </button>
+                    </div>
+                )}
+
+                {mode === 'forgot' && (
+                    <button
+                        type="button"
+                        onClick={() => switchMode('login')}
+                        className="text-gray-500 hover:text-gray-900 underline text-xs font-semibold"
+                    >
+                        Back to login
+                    </button>
+                )}
+
                 <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-lg hover:bg-black focus:ring-4 focus:ring-gray-200 transition shadow-md"
+                    disabled={loading || resendLoading}
+                    className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-lg hover:bg-black focus:ring-4 focus:ring-gray-200 transition shadow-md disabled:opacity-70"
                 >
-                    {loading ? 'Processing...' : (showOTP ? 'Verify Email & Log In' : 'Sign In')}
+                    {loading
+                        ? 'Processing...'
+                        : {
+                            login: 'Sign In',
+                            verify: 'Verify Email & Log In',
+                            forgot: 'Send Reset Code',
+                            reset: 'Update Password & Log In'
+                        }[mode]}
                 </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-100">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 text-center mb-3">Quick Demo Access</p>
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                        type="button"
-                        onClick={() => handleQuickLogin('user@eventora.com', 'password123')}
-                        disabled={loading}
-                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center"
-                    >
-                        Try Demo User
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleQuickLogin('admin@eventora.com', 'password123')}
-                        disabled={loading}
-                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center"
-                    >
-                        Try Demo Admin
-                    </button>
+            {mode === 'login' && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400 text-center mb-3">Quick Demo Access</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => handleQuickLogin('user@eventora.com', 'password123')}
+                            disabled={loading}
+                            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center disabled:opacity-70"
+                        >
+                            Try Demo User
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleQuickLogin('admin@eventora.com', 'password123')}
+                            disabled={loading}
+                            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 px-3 rounded-lg transition text-center disabled:opacity-70"
+                        >
+                            Try Demo Admin
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <p className="text-center mt-8 text-gray-600">
                 Don't have an account? <Link to="/register" className="text-gray-900 font-bold hover:underline">Sign up</Link>

@@ -3,7 +3,9 @@ import axios from 'axios';
 const getBaseUrl = () => {
     const rawUrl = import.meta.env.VITE_API_URL;
     if (!rawUrl || rawUrl.trim() === '') {
-        return '/api';
+        return import.meta.env.PROD
+            ? 'https://eventora-backend-fign.onrender.com/api'
+            : 'http://localhost:5001/api';
     }
     const cleanUrl = rawUrl.trim().replace(/\/+$/, '');
     return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;

@@ -23,7 +23,7 @@ const Register = () => {
                     state: {
                         email: data.email || email.trim().toLowerCase(),
                         needsVerification: true,
-                        otp: data.otp
+                        message: data.message
                     }
                 });
             } else if (data.role === 'admin') {
